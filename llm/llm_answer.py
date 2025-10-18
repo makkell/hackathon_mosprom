@@ -1,24 +1,37 @@
-from pyexpat import model
 from dotenv import load_dotenv
-from prompt import PROMPT
+from .prompt import PROMPT
 from gigachat import GigaChat
 import os
 
 load_dotenv()
 
-context_messages = '' # данные которые будут использоваться для контекста (все метрики и прочее)
+API_KEY_GIGACHAT = os.getenv("GIGACHAT_API_KEY")
 
-API_KEY_GIGACHAT = os.getenv("API_KEY_GIGACHAT")
+def get_llm_answer(metrics_text):
+    """
+    Получает рекомендации от LLM на основе метрик
+    
+    Args:
+        metrics_text (str): Форматированный текст с метриками
+        
+    Returns:
+        str: Рекомендации от LLM
+    """
 
-def get_llm_answer(prompt):
+        # Инициализируем GigaChat с правильными параметрами
     giga = GigaChat(
-    crecredentials=API_KEY_GIGACHAT,
-    model='GigaChat-2', # Лучше заменить на Max 
-    verify_ssl_certs=False,
+        credentials=API_KEY_GIGACHAT,
+        model='GigaChat-2',
+        verify_ssl_certs=False,
+        scope='GIGACHAT_API_PERS'
     )
 
-    payload = PROMPT.format(metrics=context_messages)
+    # Формируем промпт с метриками
+    payload = PROMPT.format(metrics=metrics_text)
 
+    # Отправляем запрос
     resp = giga.chat(payload)
 
     return resp.choices[0].message.content
+
+   

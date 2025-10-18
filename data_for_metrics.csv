@@ -1,0 +1,10 @@
+category,code,manufacture,consumption,actual_duty_rate,wto_duty_rate,year,presence_in_technical_regulations,presence_in_the_RF_PP_1875,presence_in_the_Order_of_MIT_Russia
+Elevators,842810,286,285,0,5,2022,1,1,0
+Perfumery,330300,660,591,"6,5","6,5",2022,0,0,0
+ATMs,847290,317,307,0,0,2022,0,0,0
+Elevators,842810,300,299,0,5,2023,1,1,0
+Perfumery,330300,460,368,"6,5","6,5",2023,0,0,0
+ATMs,847290,205,200,0,0,2023,0,0,0
+Elevators,842810,307,306,0,5,2024,1,1,0
+Perfumery,330300,657,576,"6,5","6,5",2024,0,0,0
+ATMs,847290,224,217,0,0,2024,0,0,0
