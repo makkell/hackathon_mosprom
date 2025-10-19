@@ -1,3 +1,13 @@
+"""
+Модуль для расчета метрик производства и потребления товаров РФ
+
+ВАЖНО О ЕДИНИЦАХ ИЗМЕРЕНИЯ:
+- Данные производства (manufacture) и потребления (consumption) в CSV файле представлены в МИЛЛИОНАХ ДОЛЛАРОВ
+- Данные импорта (import_total) из calc_import_metrics представлены в ДОЛЛАРАХ (не в миллионах)
+- Для корректного расчета метрик данные производства и потребления конвертируются в доллары
+- В результатах метрик исходные данные сохраняются в миллионах долларов для удобства отображения
+"""
+
 import pandas as pd
 import numpy as np
 
@@ -7,7 +17,9 @@ def calculate_man_metrics(df_production, import_metrics_by_year, tnved_code=None
     
     Args:
         df_production (pd.DataFrame): DataFrame с колонками ['category', 'year', 'manufacture', 'consumption', 'code']
+                                    ВАЖНО: manufacture и consumption должны быть в миллионах долларов
         import_metrics_by_year (dict): Словарь с метриками импорта по годам из calc_import_metrics
+                                    ВАЖНО: import_total уже в долларах (не в миллионах)
         tnved_code (str): Код ТН ВЭД для фильтрации данных импорта
         
     Returns:
@@ -34,8 +46,13 @@ def calculate_man_metrics(df_production, import_metrics_by_year, tnved_code=None
         
         for idx, row in category_data.iterrows():
             year = row['year']
-            manufacture = float(row['manufacture']) if pd.notna(row['manufacture']) else 0
-            consumption = float(row['consumption']) if pd.notna(row['consumption']) else 0
+            # Данные производства и потребления в миллионах долларов
+            manufacture_millions = float(row['manufacture']) if pd.notna(row['manufacture']) else 0
+            consumption_millions = float(row['consumption']) if pd.notna(row['consumption']) else 0
+            
+            # Конвертируем в доллары для корректного сравнения с импортом
+            manufacture = manufacture_millions * 1_000_000  # млн $ -> $
+            consumption = consumption_millions * 1_000_000  # млн $ -> $
             
             # Получаем код ТН ВЭД для данной категории
             category_tnved_code = None
@@ -45,6 +62,7 @@ def calculate_man_metrics(df_production, import_metrics_by_year, tnved_code=None
                 category_tnved_code = str(tnved_code)
             
             # Получаем данные импорта для данного года и кода ТН ВЭД
+            # import_total уже в долларах (не в миллионах)
             import_val = 0
             if year in import_metrics_by_year and category_tnved_code:
                 # Используем данные импорта для конкретного кода ТН ВЭД
@@ -54,17 +72,14 @@ def calculate_man_metrics(df_production, import_metrics_by_year, tnved_code=None
             self_sufficiency = manufacture / consumption if consumption > 0 else 0
             balance = manufacture - consumption
             
-            # Зависимость от импорта = доля импорта в покрытии нехватки производства
-            # Если производство покрывает потребление полностью, то зависимость = 0
-            # Если производство не покрывает потребление, то импорт покрывает нехватку
-            production_deficit = max(0, consumption - manufacture)  # Нехватка производства
-            if production_deficit > 0:
-                import_dependency = min(import_val / production_deficit, 1.0)  # Ограничиваем до 100%
-            else:
-                import_dependency = 0  # Если производство покрывает потребление, зависимость = 0
-            
-            # Доля производства в общем предложении (производство + импорт)
+            # Общее предложение (производство + импорт)
             total_supply = manufacture + import_val
+            
+            # Зависимость от импорта = доля импорта в общем предложении
+            # Это показывает, какая часть общего предложения приходится на импорт
+            import_dependency = import_val / total_supply if total_supply > 0 else 0
+            
+            # Доля производства в общем предложении
             production_share = manufacture / total_supply if total_supply > 0 else 0
             
             # Дополнительные метрики
@@ -76,14 +91,16 @@ def calculate_man_metrics(df_production, import_metrics_by_year, tnved_code=None
             growth_rate = None
             prev_year_data = category_data[category_data['year'] == year - 1]
             if not prev_year_data.empty:
-                prev_manufacture = float(prev_year_data['manufacture'].iloc[0]) if pd.notna(prev_year_data['manufacture'].iloc[0]) else 0
+                prev_manufacture_millions = float(prev_year_data['manufacture'].iloc[0]) if pd.notna(prev_year_data['manufacture'].iloc[0]) else 0
+                prev_manufacture = prev_manufacture_millions * 1_000_000  # млн $ -> $
                 if prev_manufacture > 0:
                     growth_rate = (manufacture - prev_manufacture) / prev_manufacture
             
             # Темп роста потребления
             consumption_growth_rate = None
             if not prev_year_data.empty:
-                prev_consumption = float(prev_year_data['consumption'].iloc[0]) if pd.notna(prev_year_data['consumption'].iloc[0]) else 0
+                prev_consumption_millions = float(prev_year_data['consumption'].iloc[0]) if pd.notna(prev_year_data['consumption'].iloc[0]) else 0
+                prev_consumption = prev_consumption_millions * 1_000_000  # млн $ -> $
                 if prev_consumption > 0:
                     consumption_growth_rate = (consumption - prev_consumption) / prev_consumption
             
@@ -121,9 +138,9 @@ def calculate_man_metrics(df_production, import_metrics_by_year, tnved_code=None
                 'competitiveness_index': round(competitiveness_index, 4) if competitiveness_index != float('inf') else None,
                 'self_sufficiency_index': round(self_sufficiency_index, 4),
                 
-                # Исходные данные
-                'manufacture': manufacture,
-                'consumption': consumption
+                # Исходные данные (в миллионах долларов для отображения)
+                'manufacture': manufacture_millions,
+                'consumption': consumption_millions
             }
         
         metrics_dict[category] = category_metrics
